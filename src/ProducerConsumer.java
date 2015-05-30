@@ -1,91 +1,88 @@
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
-class Food {
-	private static int id = 0;
-	
-	Food () {
-		++id;
-	}
-	
-	public int getId() {
-		return id;
-	}
-	
-	public void setId(int id) {
-		this.id = id;
-	}
-	
-	@Override
-	public String toString() {
-		return "Food: " + ++id;
-	}
-}
-
+//用BlockingQueue实现生产者消费者模型
 class Producer implements Runnable {
-	BlockingQueue<Food> lock;
+	BlockingQueue<String> queue;
 
-	Producer(BlockingQueue<Food> lock) {
-		this.lock = lock;
+	Producer(BlockingQueue<String> queue) {
+		this.queue = queue;
 	}
 
 	@Override
 	public void run() {
 		while (true) {
 			try {
-				lock.put(produce());
+				TimeUnit.SECONDS.sleep(new Random().nextInt(3));	//随机生成生产时间
+				queue.put(produce());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
 	}
 	
-	public Food produce() throws InterruptedException {
-		Food food = new Food();
-		while (food.getId() >= 10 )  {
-			//wait();
+	public String produce() {
+		List<String> produce = new ArrayList<>();		//在这些产品中随机生成一样产品
+		produce.add("Food");
+		produce.add("Car");
+		produce.add("Phone");
+		produce.add("Computer");
+		String produceProduct = null;					//最终生产的产品
+		boolean flag = true;
+		Random random = new Random();
+		int getProdect = random.nextInt(4);
+		while (flag) {
+			if (getProdect <= produce.size()) {
+				produceProduct = produce.get(getProdect);
+				flag = false;
+			}
 		}
-		return food;
+		String tag = UUID.randomUUID().toString().substring(3, 8);	//标识同类产品
+		System.out.println("Producer producing " + produceProduct + " " + tag);
+		return produceProduct + " " + tag;
 	}
 
 }
 
 class Consumer implements Runnable {
-	BlockingQueue<Food> lock;
+	BlockingQueue<String> queue;
 
-	Consumer(BlockingQueue<Food> lock) {
-		this.lock = lock;
+	Consumer(BlockingQueue<String> lock) {
+		this.queue = lock;
 	}
 
 	@Override
 	public void run() {
 		while (true) {
 			try {
-				consume(lock.take());
+				TimeUnit.SECONDS.sleep(new Random().nextInt(3));	//随机生成消费时间
+				consume(queue.take());
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
 	}
 
-	private void consume(Food food) throws InterruptedException {
-		System.out.println(food + " be eating!");
-		int foodId = food.getId();
-		food.setId(--foodId);
-		while (foodId <= 0) {
-			//lock.wait();
-		}
+	private void consume(String produce) throws InterruptedException {
+		System.out.println("Consumer buy product " + produce);
 	}
 }
 
 public class ProducerConsumer {
 
 	public static void main(String[] args) {
-		BlockingQueue<Food> queue = new LinkedBlockingDeque<>();
-		Producer producer = new Producer(queue);
-		Consumer consumer = new Consumer(queue);
-		new Thread(producer).start();
-		new Thread(consumer).start();
+		BlockingQueue<String> queue = new LinkedBlockingDeque<>(5);
+		ExecutorService service = Executors.newCachedThreadPool();
+		service.execute(new Producer(queue));
+		service.execute(new Consumer(queue));
+		service.shutdown();
 	}
 
 }
